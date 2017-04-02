@@ -177,3 +177,9 @@ instead.""", :imcorner)
     end
     ret
 end
+
+function imedge(img::AbstractArray, method::AbstractString, border::AbstractString="replicate")
+    f = ImageFiltering.kernelfunc_lookup(method)
+    depwarn("`imedge(img, \"$method\", args...)` is deprecated, please use `imedge(img, $f, args...)` instead.", :imedge)
+    imedge(img, f, border)
+end

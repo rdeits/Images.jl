@@ -17,6 +17,7 @@ include("exposure.jl")
 include("edge.jl")
 include("writemime.jl")
 include("corner.jl")
+include("corner2.jl")
 
 isinteractive() || FactCheck.exitstatus()
 

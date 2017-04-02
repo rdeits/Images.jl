@@ -1,3 +1,19 @@
+## When deleting deprecations, do not delete the following functions
+
+function show_kwargs(io::IO, kwargs)
+    for arg in kwargs
+        print(io, arg[1], '=', arg[2])
+    end
+    nothing
+end
+function kwstring(kwargs)
+    io = IOBuffer()
+    show_kwargs(io, kwargs)
+    String(take!(io))
+end
+
+## Actual deprecations
+
 export
     AbstractImage,
     AbstractImageDirect,
@@ -79,9 +95,85 @@ Base.@deprecate_binding LabeledArray ColorizedArray
 
 function canny{T<:NumberLike}(img_gray::AbstractMatrix{T}, sigma::Number = 1.4, upperThreshold::Number = 0.90, lowerThreshold::Number = 0.10; percentile::Bool = true)
     depwarn("canny(img, sigma, $upperThreshold, $lowerThreshold; percentile=$percentile) is deprecated.\n Please use canny(img, ($upperThreshold, $lowerThreshold), sigma) or canny(img, (Percentile($(100*upperThreshold)), Percentile($(100*lowerThreshold))), sigma)",:canny)
-    if percentile==true
+    if percentile
         canny(img_gray, (Percentile(100*upperThreshold), Percentile(100*lowerThreshold)), sigma)
     else
         canny(img_gray, (upperThreshold, lowerThreshold), sigma)
     end
+end
+
+function imcorner(img::AbstractArray; method=nothing, args...)
+    local ret
+    if method == nothing
+        if isempty(args)
+            # No depwarn needed
+            ret = imcorner(harris, img)
+        else
+            argstr = kwstring(args)
+            depwarn("""`imcorner(img; $argstr)` is deprecated, please use
+    imcorner(img) do A
+        harris(A, $argstr)
+    end
+instead.""", :imcorner)
+            ret = imcorner(img) do A
+                harris(A; args...)
+            end
+        end
+    else
+        methodname = string(method)
+        if startswith(methodname, "Images.")
+            methodname = replace(methodname, "Images.", "", 1)
+        end
+        if isempty(args)
+            depwarn("`imcorner(img; method=$methodname)` is deprecated, please use `imcorner($methodname, img)` instead.", :imcorner)
+        else
+            argstr = kwstring(args)
+            depwarn("""`imcorner(img; method=$methodname, $argstr)` is deprecated, please use
+    imcorner(img) do A
+        $methodname(A, $argstr)
+    end
+instead.""", :imcorner)
+        end
+        ret = imcorner(A->method(A; args...), img)
+    end
+    ret
+end
+
+function imcorner(img::AbstractArray, threshold, percentile; method=nothing, args...)
+    local ret
+    threshstring = percentile ? "Percentile($(100*threshold))" : "$threshold"
+    threshval = percentile ? Percentile(100*threshold) : threshold
+    if method == nothing
+        if isempty(args)
+            depwarn("imcorner(img, $threshold, $percentile) is deprecated, please use imcorner(img, $threshstring) instead", :imcorner)
+            ret = imcorner(img, threshval)
+        else
+            argstr = kwstring(args)
+            depwarn("""`imcorner(img, $threshold, $percentile; method=$methodname, $argstr)` is deprecated, please use
+    imcorner(img, $threshstring) do A
+        harris(A, $argstr)
+    end
+instead.""", :imcorner)
+            ret = imcorner(img, threshval) do A
+                harris(A; args...)
+            end
+        end
+    else
+        methodname = string(method)
+        if startswith(methodname, "Images.")
+            methodname = replace(methodname, "Images.", "", 1)
+        end
+        if isempty(args)
+            depwarn("`imcorner(img, $threshold, $percentile; method=$methodname)` is deprecated, please use `imcorner($methodname, img, $threshstring)` instead.", :imcorner)
+        else
+            argstr = kwstring(args)
+            depwarn("""`imcorner(img, $threshold, $percentile; method=$methodname, $argstr)` is deprecated, please use
+    imcorner(img, $threshstring) do A
+        $methodname(A, $argstr)
+    end
+instead.""", :imcorner)
+        end
+        ret = imcorner(A->method(A; args...), img, threshval)
+    end
+    ret
 end

@@ -1,38 +1,58 @@
 """
+    corners = imcorner(img)
+    corners = imcorner(f, img)
+
+Detect corners in `img` using detector method `f`, keeping all local
+maxima of `f(img)`. If not supplied, the default `f` is
+[`harris`](@ref). Other supported options are [`shi_tomasi`](@ref) and
+[`kitchen_rosenfeld`](@ref).
+
+If you need to override the default arguments for your detector method, you
+can use an anonymous function or the `do`-block syntax illustrated
+below.
+
+# Example
+```julia
+using TestImages
+img = testimage("cameraman")
+corners = imcorner(img) do A
+    shi_tomasi(A; border="reflect")
+end
 ```
-corners = imcorner(img; [method])
-corners = imcorner(img, threshold, percentile; [method])
-```
-
-Performs corner detection using one of the following methods -
-
-    1. harris
-    2. shi_tomasi
-    3. kitchen_rosenfeld
-
-The parameters of the individual methods are described in their documentation. The
-maxima values of the resultant responses are taken as corners. If a threshold is
-specified, the values of the responses are thresholded to give the corner pixels.
-The threshold is assumed to be a percentile value unless `percentile` is set to false.
 """
-function imcorner(img::AbstractArray; method::Function = harris, args...)
-    responses = method(img; args...)
-    corners = falses(size(img))
-    maxima = map(CartesianIndex{2}, findlocalmaxima(responses))
+function imcorner(method, img::AbstractArray)
+    responses = method(img)
+    corners = similar(img, Bool)
+    fill!(corners, false)
+    maxima = map(CartesianIndex, findlocalmaxima(responses))
     for m in maxima corners[m] = true end
     corners
 end
+# TODO: once the deprecation is deleted, uncomment this method
+# imcorner(img::AbstractArray) = imcorner(harris, img)
 
-function imcorner(img::AbstractArray, threshold, percentile; method::Function = harris, args...)
-    responses = method(img; args...)
+"""
+    corners = imcorner(img, threshold)
+    corners = imcorner(f, img, threshold)
 
-    if percentile == true
-        threshold = StatsBase.percentile(vec(responses), threshold * 100)
-    end
-
-    corners = map(i -> i > threshold, responses)
-    corners
+Detect corners in `img` using detector method `f`, keeping all points
+of `f(img)` exceeding `threshold`. `threshold` may be supplied as an
+absolute number or as a [`Percentile`](@ref) of the values of
+`f(img)`.
+"""
+function imcorner(method, img::AbstractArray, threshold::Real)
+    responses = method(img)
+    map(i -> i > threshold, responses)
 end
+
+function imcorner(method, img::AbstractArray, thresholdp::Percentile)
+    responses = method(img)
+    threshold = StatsBase.percentile(vec(responses), thresholdp.p)
+    map(i -> i > threshold, responses)
+end
+
+imcorner(img::AbstractArray, threshold::Union{Real,Percentile}) =
+    imcorner(harris, img, threshold)
 
 """
 ```

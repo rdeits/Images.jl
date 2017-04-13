@@ -83,6 +83,10 @@ function Base.show{T<:ColorantArray, N}(io::IO, m::MIME"text/html", imgs::Abstra
     end
 end
 
+function downsize_for_thumbnail(img::AbstractVector, w, h)
+    downsize_for_thumbnail(reshape(img, 1, length(img)), w, h)
+end
+
 function downsize_for_thumbnail(img, w, h)
     a,b=size(img)
     a > 2w && b > 2h ?
